@@ -1,0 +1,26 @@
+{
+    "name": "auto-merge-tool",
+    "private": true,
+    "scripts": {
+        "build": "nuxt build",
+        "dev": "nuxt dev",
+        "generate": "nuxt generate",
+        "preview": "nuxt preview",
+        "postinstall": "nuxt prepare"
+    },
+    "devDependencies": {
+        "@nuxt/devtools": "latest",
+        "nuxt": "^3.7.0",
+        "@nuxtjs/tailwindcss": "^6.8.0",
+        "@pinia/nuxt": "^0.4.11",
+        "pinia": "^2.1.6",
+        "vue": "^3.3.4",
+        "vue-router": "^4.2.4"
+    },
+    "dependencies": {
+        "@headlessui/vue": "^1.7.16",
+        "@heroicons/vue": "^2.0.18",
+        "axios": "^1.4.0",
+        "dayjs": "^1.11.9"
+    }
+}
