@@ -20,6 +20,7 @@ CORS(app)
 # Cấu hình
 GIT_REPO_PATH = os.getenv('GIT_REPO_PATH')
 CONFIG_FILE = 'merge_configs.json'
+JENKINS_CONFIG_FILE = 'jenkins_config.json'
 JENKINS_URL = os.getenv('JENKINS_URL', 'https://jenkins-dev.f88.co')
 JENKINS_USERNAME = os.getenv('JENKINS_USERNAME')
 JENKINS_TOKEN = os.getenv('JENKINS_TOKEN')
@@ -27,6 +28,11 @@ repo = Repo(GIT_REPO_PATH)
 
 # Lưu trữ cấu hình merge
 merge_configs = []
+jenkins_config = {
+    'jenkinsUrl': JENKINS_URL,
+    'jenkinsUsername': JENKINS_USERNAME,
+    'jenkinsToken': JENKINS_TOKEN
+}
 
 # Thêm biến toàn cục để lưu trạng thái tự động merge
 auto_merge_enabled = False
@@ -58,6 +64,29 @@ def save_configs():
             json.dump(merge_configs, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"Error saving configs: {e}")
+
+# Hàm đọc cấu hình Jenkins từ file JSON
+def load_jenkins_config():
+    global jenkins_config
+    try:
+        if os.path.exists(JENKINS_CONFIG_FILE):
+            with open(JENKINS_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                jenkins_config = json.load(f)
+    except Exception as e:
+        print(f"Error loading Jenkins config: {e}")
+        jenkins_config = {
+            'jenkinsUrl': JENKINS_URL,
+            'jenkinsUsername': JENKINS_USERNAME,
+            'jenkinsToken': JENKINS_TOKEN
+        }
+
+# Hàm lưu cấu hình Jenkins vào file JSON
+def save_jenkins_config():
+    try:
+        with open(JENKINS_CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(jenkins_config, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving Jenkins config: {e}")
 
 def perform_merge(source_branch, target_branch):
     try:
@@ -293,9 +322,156 @@ def trigger_jenkins():
             'message': str(e)
         }), 500
 
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    return jsonify(jenkins_config)
+
+@app.route('/api/settings', methods=['POST'])
+def save_settings():
+    global jenkins_config
+    data = request.json
+    jenkins_config = {
+        'jenkinsUrl': data.get('jenkinsUrl', JENKINS_URL),
+        'jenkinsUsername': data.get('jenkinsUsername', JENKINS_USERNAME),
+        'jenkinsToken': data.get('jenkinsToken', JENKINS_TOKEN)
+    }
+    save_jenkins_config()
+    return jsonify({'message': 'Settings saved successfully'})
+
+@app.route('/api/commits', methods=['GET'])
+def get_commits():
+    try:
+        # Lấy danh sách commit gần đây
+        commits = []
+        for commit in repo.iter_commits('HEAD', max_count=50):
+            commits.append({
+                'hash': commit.hexsha,
+                'message': commit.message.strip(),
+                'author': commit.author.name,
+                'date': commit.committed_datetime.isoformat()
+            })
+        return jsonify(commits)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/checkout', methods=['POST'])
+def checkout():
+    try:
+        data = request.json
+        branch = data.get('branch')
+        if not branch:
+            return jsonify({'error': 'Branch name is required'}), 400
+            
+        repo.git.checkout(branch)
+        return jsonify({'message': f'Switched to branch {branch}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/branches/create', methods=['POST'])
+def create_branch():
+    try:
+        data = request.json
+        name = data.get('name')
+        from_branch = data.get('from')
+        
+        if not name:
+            return jsonify({'error': 'Branch name is required'}), 400
+            
+        if from_branch:
+            repo.git.checkout(from_branch)
+            
+        repo.git.checkout('-b', name)
+        return jsonify({'message': f'Created branch {name}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/branches/delete', methods=['POST'])
+def delete_branch():
+    try:
+        data = request.json
+        branch = data.get('branch')
+        if not branch:
+            return jsonify({'error': 'Branch name is required'}), 400
+            
+        repo.git.branch('-d', branch)
+        return jsonify({'message': f'Deleted branch {branch}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stashes', methods=['GET'])
+def get_stashes():
+    try:
+        stashes = []
+        for stash in repo.git.stash('list').split('\n'):
+            if stash:
+                parts = stash.split(':')
+                stashes.append({
+                    'id': parts[0],
+                    'message': parts[2].strip()
+                })
+        return jsonify(stashes)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stashes/create', methods=['POST'])
+def create_stash():
+    try:
+        data = request.json
+        message = data.get('message', '')
+        
+        if message:
+            repo.git.stash('save', message)
+        else:
+            repo.git.stash('save')
+            
+        return jsonify({'message': 'Changes stashed successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stashes/apply', methods=['POST'])
+def apply_stash():
+    try:
+        data = request.json
+        stash_id = data.get('stashId', '0')
+        
+        repo.git.stash('apply', f'stash@{{{stash_id}}}')
+        return jsonify({'message': 'Stash applied successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stashes/drop', methods=['POST'])
+def drop_stash():
+    try:
+        data = request.json
+        stash_id = data.get('stashId', '0')
+        
+        repo.git.stash('drop', f'stash@{{{stash_id}}}')
+        return jsonify({'message': 'Stash dropped successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pull', methods=['POST'])
+def pull():
+    try:
+        repo.git.pull()
+        return jsonify({'message': 'Pulled changes successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/push', methods=['POST'])
+def push():
+    try:
+        repo.git.push()
+        return jsonify({'message': 'Pushed changes successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Đọc cấu hình từ file
     load_configs()
+    
+    # Đọc cấu hình Jenkins từ file
+    load_jenkins_config()
     
     # Khởi động thread chạy lịch merge
     scheduler_thread = threading.Thread(target=run_scheduled_merges)

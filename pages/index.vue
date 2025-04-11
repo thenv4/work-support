@@ -1,5 +1,5 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div>
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-2xl font-bold">Cấu hình Merge tự động</h1>
       <div class="flex items-center space-x-4">
