@@ -15,20 +15,20 @@
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thời gian
                 </th>
-                <th scope="col" class="relative px-6 py-3">
-                  <span class="sr-only">Xóa</span>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Thao tác
                 </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="config in configs" :key="config.id">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <tr v-for="config in configs" :key="config.id" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ config.source_branch }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ config.target_branch }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {{ config.time }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRuntimeConfig } from '#app'
 
 const config = useRuntimeConfig()
@@ -149,4 +149,8 @@ const deleteConfig = async () => {
     isDeleting.value = false
   }
 }
+
+onMounted(() => {
+  // Additional logic if needed on component mount
+})
 </script> 
